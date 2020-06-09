@@ -1,0 +1,47 @@
+version: '3.1'
+networks:
+  app-tier:
+    driver: bridge 
+services:
+  db:
+    image: mysql:5.7
+    command: --default-authentication-plugin=mysql_native_password --bind-address=0.0.0.0 --explicit_defaults_for_timestamp
+    volumes:
+      - ./sql:/docker-entrypoint-initdb.d
+    restart: always
+    environment:
+      MYSQL_USER: generic_operator
+      MYSQL_PASSWORD: example
+      MYSQL_ROOT_PASSWORD: example
+      MYSQL_DATABASE: shopify_webhook      
+    ports:
+      - 3306:3306
+    healthcheck:
+      test: "/usr/bin/mysql --user=generic_operator --password=example --database shopify_webhook --execute='SELECT count(table_name) > 0 FROM information_schema.tables;'"
+      interval: 10s
+      timeout: 60s
+      retries: 6
+    networks:
+      - app-tier
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8989:8080
+    networks:
+      - app-tier
+  api:
+    depends_on:
+      - db
+    build: .
+    environment:
+      durl: "jdbc:mysql://db:3306/shopify_webhook"
+      dusername: generic_operator
+      dpassword: example
+      health: checkhealth
+      shop_key: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    command: ["sleep","100"]
+    ports:
+      - 8080:8080
+    networks:
+      - app-tier
